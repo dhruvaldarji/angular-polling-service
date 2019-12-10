@@ -3,6 +3,7 @@ import {
   of,
   Observable,
   BehaviorSubject,
+  Subscription,
   Subject,
   timer,
 } from 'rxjs';
@@ -12,6 +13,7 @@ import {
   takeUntil,
   skip,
   tap,
+  debounceTime,
 } from 'rxjs/operators';
 
 import { ApiService } from './api.service';
@@ -30,39 +32,57 @@ export class AppComponent implements OnDestroy {
   interval$ = new BehaviorSubject<number>(2000);
   source$ = new BehaviorSubject<Source>(Source.chuck);
   sourceList$ = this.getSourceList();
-  private poll$: Observable<any>;  
+  private poll$: Subscription;  
+  private stop$: Subject<any>;
   private destroy$ = new Subject();
 
   constructor(private apiService: ApiService) {}
 
+  /** Destroy the component on unload. */
   ngOnDestroy() {
+    this.stop();
     this.destroy$.next();
+    this.destroy$.complete();
   }
 
+  /** Start Polling based on interval and source. */
   start() {
+    // If we have already started the stream do not start again.
     if (this.poll$) {
+      console.log('already started');
       return this.poll$;
     }
+
+    console.log('start');
+    // Initialize the stop$ Subject.
+    this.stop$ = new Subject();
     
+    // Start observing the interval.
     this.poll$ = this.interval$.pipe(
+      // Disallow multiple updates to the interval.
+      debounceTime(250),
+      tap((i) => console.log(`Starting Polling @ ${i}`)),
+      // Swap in our timer, based on the interval.
       switchMap((interval) => {
-        console.log(`Starting Polling @ ${interval}`);
         return timer(0, interval);
       }),
       skip(1),
       tap((t) => console.log('Emit timer: ', t)),
+      // Swap in source, when timer next emits.
       switchMap(() => this.source$),
       tap((s) => console.log('Using Source: ', s)),
-      concatMap((source) => {
+      // Swap in source api, once source itself is retrieved.
+      switchMap((source) => {
         return this.getSourceApi(source);
       }),
-    );
-    
-    this.poll$.pipe(takeUntil(this.destroy$))
-      .subscribe((response) => {
-        console.log('data', response);
-        this.data$.next(response || null);
-      });
+      takeUntil(this.stop$)
+    ).subscribe((response) => {
+      console.log('data', response);
+      // Do something with the data
+      this.data$.next(response || null);
+      // NOTE: You can optionally destroy the stream from here as well.
+      // this.stop();
+    });
 
     return this.poll$;
   }
@@ -72,15 +92,19 @@ export class AppComponent implements OnDestroy {
    */
   stop() {
     console.log("stop");
-    this.destroy$.next();
-    this.poll$ = null;
+    // Stop the observers, if they exist
+    if (this.stop$) {
+      this.stop$.next();
+    }
+    if (this.poll$) {
+      this.poll$ = null;
+    }
   }
 
   /** 
    * Set the Poll Interval
    */
   setInterval(value = 5000) {
-    console.log('set interval:', value);
     this.interval$.next(value)
   }
 
@@ -88,7 +112,6 @@ export class AppComponent implements OnDestroy {
    * Set the API Source
    */
   setSource(sourceType = Source.chuck) {
-    console.log('set source:', sourceType);
     this.source$.next(sourceType);
   }
 
