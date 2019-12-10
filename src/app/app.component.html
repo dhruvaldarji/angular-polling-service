@@ -3,6 +3,7 @@
 <header>
   <button class="field" (click)="start()">Start Polling</button>
   <button class="field" (click)="stop()">Stop Polling</button>
+  <button class="field" (click)="clear()">Clear Data</button>
   <input
     class="field field-input"
     placeholder="Select interval"
@@ -26,6 +27,14 @@
       </option>
     </select>
 </header>
+<hr/>
+<p>
+  Timer:
+  <span *ngIf="(timerCount$ | async) as count; else stopped">
+    {{ count - 1 }}
+  </span>    
+  <ng-template #stopped>Stopped</ng-template>
+</p>
 <hr/>
 
 <pre>{{ (data$ | async) || 'No Data' | json}}</pre>

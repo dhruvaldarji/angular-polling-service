@@ -30,6 +30,7 @@ export class AppComponent implements OnDestroy {
   sourceEn = Source;
   data$ = new BehaviorSubject<any>(null);
   interval$ = new BehaviorSubject<number>(2000);
+  timerCount$ = new BehaviorSubject<number>(0);
   source$ = new BehaviorSubject<Source>(Source.chuck);
   sourceList$ = this.getSourceList();
   private poll$: Subscription;  
@@ -66,8 +67,10 @@ export class AppComponent implements OnDestroy {
       switchMap((interval) => {
         return timer(0, interval);
       }),
-      skip(1),
-      tap((t) => console.log('Emit timer: ', t)),
+      tap((t) => {
+        console.log('Emit timer: ', t);
+        this.timerCount$.next(t + 1);
+      }),
       // Swap in source, when timer next emits.
       switchMap(() => this.source$),
       tap((s) => console.log('Using Source: ', s)),
@@ -95,6 +98,7 @@ export class AppComponent implements OnDestroy {
     // Stop the observers, if they exist
     if (this.stop$) {
       this.stop$.next();
+      this.timerCount$.next(null);
     }
     if (this.poll$) {
       this.poll$ = null;
@@ -115,10 +119,17 @@ export class AppComponent implements OnDestroy {
     this.source$.next(sourceType);
   }
 
+  /**
+   * Reset the data.
+   */
+  clear() {
+    this.data$.next(null);
+  }
+
   /** 
    * Get the Source Api
    */
-  getSourceApi(value = Source.chuck) {
+  private getSourceApi(value = Source.chuck) {
     switch (value) {
       case Source.block: 
         return this.apiService.getBlock();
@@ -131,7 +142,7 @@ export class AppComponent implements OnDestroy {
   /**
    * Get the list of available Sources.
    */
-  getSourceList() {
+  private getSourceList() {
     const list = Object.keys(Source).map((s) => ({
       label: SourceLabels[Source[s]],
       value: s,
