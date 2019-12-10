@@ -1,0 +1,31 @@
+<h1>{{name}}!</h1>
+<hr/>
+<header>
+  <button class="field" (click)="start()">Start Polling</button>
+  <button class="field" (click)="stop()">Stop Polling</button>
+  <input
+    class="field field-input"
+    placeholder="Select interval"
+    type="number"
+    min="1000"
+    step="1000"
+    [ngModel]="interval$ | async"
+    (ngModelChange)="setInterval($event)"
+  />
+  <select
+      class="field field-input"
+      [ngModel]="source$ | async"
+      (ngModelChange)="setSource($event)"
+    >
+      <option value="">-- Select Source --</option>
+      <option
+        *ngFor="let s of sourceList$ | async"
+        [value]="sourceEn[s.value]"
+      >
+        {{ s.label }}
+      </option>
+    </select>
+</header>
+<hr/>
+
+<pre>{{ (data$ | async) || 'No Data' | json}}</pre>
